@@ -5,11 +5,15 @@ const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
+const requestLogger = require('./utils/logger');
+const { validateBookInput } = require('./utils/validator');
+
 const app = express();
 const port = process.env.PORT || 5000;
 const jwtSecret = process.env.JWT_SECRET || 'booknook_jwt_super_secret_key_variant_ron_2026';
 
 // Middleware
+app.use(requestLogger);
 const allowedOrigins = [
   'http://localhost:3000',
   process.env.CLIENT_URL,
