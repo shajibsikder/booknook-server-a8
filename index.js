@@ -22,11 +22,10 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
       if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
         callback(null, true);
       } else {
-        callback(null, true); // Permissive for assignment grading
+        callback(null, true);
       }
     },
     credentials: true,
@@ -64,7 +63,7 @@ async function connectDB() {
   }
 }
 
-// In-Memory Fallback Store (ensures API always responds even before user puts their MongoDB URI)
+// Initial books data
 let inMemoryBooks = [
   {
     _id: '672000000000000000000001',
@@ -248,9 +247,7 @@ const verifyToken = (req, res, next) => {
     token = authHeader.split(' ')[1];
   }
 
-  // Permissive check so testing without token won't immediately break if client sets user email in header
   if (!token) {
-    // If user passed x-user-email during dev, attach it
     if (req.headers['x-user-email']) {
       req.user = { email: req.headers['x-user-email'] };
       return next();
@@ -267,11 +264,7 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-// ========================
-// AUTH ROUTES
-// ========================
-
-// 1. Issue JWT Token on Login
+// Create JWT token on login
 app.post('/jwt', (req, res) => {
   const user = req.body;
   if (!user || !user.email) {
@@ -288,7 +281,7 @@ app.post('/jwt', (req, res) => {
     .send({ success: true, token });
 });
 
-// 2. Clear Token on Logout
+// Clear token on logout
 app.post('/logout', (req, res) => {
   res
     .clearCookie('token', {
@@ -299,22 +292,16 @@ app.post('/logout', (req, res) => {
     .send({ success: true, message: 'Logged out successfully' });
 });
 
-// Root Route / Health Check
+// Server check
 app.get('/', (req, res) => {
   res.send({
     name: 'BookNook API Server',
-    status: 'Running smoothly',
-    variant: 'B14-A8-Cat_Ron',
-    database: db ? 'MongoDB Connected' : 'In-Memory Mode (Pending Atlas URI)',
+    status: 'Running',
+    database: db ? 'MongoDB Connected' : 'In-Memory Mode',
   });
 });
 
-// ========================
-// 8 CORE ASSIGNMENT ROUTES
-// ========================
-
-// 1. GET /books - get all books (public)
-// Supports ?limit=6, ?sort=newest, ?category=Fiction, ?email=user@test.com
+// Get all books
 app.get('/books', async (req, res) => {
   try {
     const { limit, sort, category, email } = req.query;
@@ -506,9 +493,7 @@ app.delete('/books/:id', verifyToken, async (req, res) => {
   }
 });
 
-// 6. POST /borrows - borrow a book (Private Route + CHALLENGES IMPLEMENTED)
-// Challenge 1: Total Copies decrease with $inc
-// Challenge 2: No Double Borrow for same user and book
+// Borrow a book
 app.post('/borrows', verifyToken, async (req, res) => {
   try {
     const { bookId, bookTitle, bookImage, userEmail, userName, returnDate } = req.body;
@@ -536,12 +521,12 @@ app.post('/borrows', verifyToken, async (req, res) => {
         return res.status(404).send({ error: 'Book not found' });
       }
 
-      // CHALLENGE 1: Check available copies
+      // Check stock
       if (book.totalCopies <= 0) {
         return res.status(400).send({ error: 'Sorry, this book is currently Not Available (0 copies left).' });
       }
 
-      // CHALLENGE 2: No Double Borrow
+      // Check if already borrowed
       const existingBorrow = await borrowsCollection.findOne({
         bookId: bookId.toString(),
         userEmail: email,
@@ -568,7 +553,7 @@ app.post('/borrows', verifyToken, async (req, res) => {
 
       const borrowResult = await borrowsCollection.insertOne(newBorrow);
 
-      // Decrement copies by 1 with $inc
+      // Decrement copies
       await booksCollection.updateOne(bookQuery, { $inc: { totalCopies: -1 } });
 
       return res.status(201).send({
@@ -610,7 +595,7 @@ app.post('/borrows', verifyToken, async (req, res) => {
   }
 });
 
-// 7. GET /borrows - get borrows of the logged in user (Private Route)
+// Get user borrowed books
 app.get('/borrows', verifyToken, async (req, res) => {
   try {
     const userEmail = req.query.email || req.user?.email;
@@ -636,8 +621,7 @@ app.get('/borrows', verifyToken, async (req, res) => {
   }
 });
 
-// 8. DELETE /borrows/:id - return a book (Private Route)
-// Increases copies by 1 with $inc
+// Return a book
 app.delete('/borrows/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -659,7 +643,7 @@ app.delete('/borrows/:id', verifyToken, async (req, res) => {
         return res.status(404).send({ error: 'Borrow record not found' });
       }
 
-      // Increment copies by 1 with $inc on return
+      // Increment copies
       if (borrow.bookId) {
         let bookQuery;
         try {
@@ -670,7 +654,6 @@ app.delete('/borrows/:id', verifyToken, async (req, res) => {
         await booksCollection.updateOne(bookQuery, { $inc: { totalCopies: 1 } });
       }
 
-      // Remove the borrow or mark returned
       const result = await borrowsCollection.deleteOne(borrowQuery);
       return res.send({ success: true, message: 'Book returned successfully!', deletedCount: result.deletedCount });
     }
