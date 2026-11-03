@@ -65,7 +65,7 @@ async function connectDB() {
 }
 
 // In-Memory Fallback Store (ensures API always responds even before user puts their MongoDB URI)
-const inMemoryBooks = [
+let inMemoryBooks = [
   {
     _id: '672000000000000000000001',
     title: 'The Midnight Library',
@@ -495,9 +495,12 @@ app.delete('/books/:id', verifyToken, async (req, res) => {
     }
 
     // Fallback in-memory
-    const initialLen = inMemoryBooks.length;
-    inMemoryBooks = inMemoryBooks.filter((b) => b._id.toString() !== id);
-    res.send({ success: true, deletedCount: initialLen - inMemoryBooks.length });
+    const bookIndex = inMemoryBooks.findIndex((b) => b._id.toString() === id);
+    if (bookIndex !== -1) {
+      inMemoryBooks.splice(bookIndex, 1);
+      return res.send({ success: true, deletedCount: 1 });
+    }
+    return res.send({ success: true, deletedCount: 0 });
   } catch (error) {
     res.status(500).send({ error: 'Failed to delete book', message: error.message });
   }
