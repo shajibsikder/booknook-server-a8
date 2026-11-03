@@ -34,6 +34,18 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Ensure DB connection in serverless environment
+app.use(async (req, res, next) => {
+  if (!db && uri && !uri.includes('<username>')) {
+    try {
+      await connectDB();
+    } catch {
+      // Continue with fallback
+    }
+  }
+  next();
+});
+
 // MongoDB Client Setup
 const uri = process.env.MONGODB_URI;
 let client;
@@ -676,7 +688,13 @@ app.delete('/borrows/:id', verifyToken, async (req, res) => {
 });
 
 // Start Server
-app.listen(port, () => {
-  console.log(`🚀 BookNook Server running on port ${port}`);
-  connectDB();
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`BookNook Server running on port ${port}`);
+    connectDB();
+  });
+} else {
+  connectDB().catch(console.error);
+}
+
+module.exports = app;
