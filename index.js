@@ -12,7 +12,6 @@ const app = express();
 const port = process.env.PORT || 5000;
 const jwtSecret = process.env.JWT_SECRET || 'booknook_jwt_super_secret_key_variant_ron_2026';
 
-// Middleware
 app.use(requestLogger);
 const allowedOrigins = [
   'http://localhost:3000',
@@ -34,19 +33,15 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// Ensure DB connection in serverless environment
 app.use(async (req, res, next) => {
   if (!db && uri && !uri.includes('<username>')) {
     try {
       await connectDB();
-    } catch {
-      // Continue with fallback
-    }
+    } catch {}
   }
   next();
 });
 
-// MongoDB Client Setup
 const uri = process.env.MONGODB_URI;
 let client;
 let db;
@@ -75,7 +70,6 @@ async function connectDB() {
   }
 }
 
-// Initial books data
 let inMemoryBooks = [
   {
     _id: '672000000000000000000001',
@@ -249,7 +243,6 @@ let inMemoryBooks = [
 
 let inMemoryBorrows = [];
 
-// JWT Verification Middleware
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   const cookieToken = req.cookies?.token;
@@ -276,7 +269,6 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-// Create JWT token on login
 app.post('/jwt', (req, res) => {
   const user = req.body;
   if (!user || !user.email) {
@@ -293,7 +285,6 @@ app.post('/jwt', (req, res) => {
     .send({ success: true, token });
 });
 
-// Clear token on logout
 app.post('/logout', (req, res) => {
   res
     .clearCookie('token', {
@@ -304,7 +295,6 @@ app.post('/logout', (req, res) => {
     .send({ success: true, message: 'Logged out successfully' });
 });
 
-// Server check
 app.get('/', (req, res) => {
   res.send({
     name: 'BookNook API Server',
@@ -313,7 +303,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Get all books
 app.get('/books', async (req, res) => {
   try {
     const { limit, sort, category, email } = req.query;
@@ -363,7 +352,6 @@ app.get('/books', async (req, res) => {
   }
 });
 
-// 2. GET /books/:id - get one book
 app.get('/books/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -394,7 +382,6 @@ app.get('/books/:id', async (req, res) => {
   }
 });
 
-// 3. POST /books - add a book (Private Route)
 app.post('/books', verifyToken, async (req, res) => {
   try {
     const { title, author, category, image, description, totalCopies, userName, userEmail } = req.body;
@@ -430,7 +417,6 @@ app.post('/books', verifyToken, async (req, res) => {
   }
 });
 
-// 4. PATCH /books/:id - update a book (Private Route)
 app.patch('/books/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -470,7 +456,6 @@ app.patch('/books/:id', verifyToken, async (req, res) => {
   }
 });
 
-// 5. DELETE /books/:id - delete a book (Private Route)
 app.delete('/books/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -500,7 +485,6 @@ app.delete('/books/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Borrow a book
 app.post('/borrows', verifyToken, async (req, res) => {
   try {
     const { bookId, bookTitle, bookImage, userEmail, userName, returnDate } = req.body;
@@ -528,12 +512,10 @@ app.post('/borrows', verifyToken, async (req, res) => {
         return res.status(404).send({ error: 'Book not found' });
       }
 
-      // Check stock
       if (book.totalCopies <= 0) {
         return res.status(400).send({ error: 'Sorry, this book is currently Not Available (0 copies left).' });
       }
 
-      // Check if already borrowed
       const existingBorrow = await borrowsCollection.findOne({
         bookId: bookId.toString(),
         userEmail: email,
@@ -560,7 +542,6 @@ app.post('/borrows', verifyToken, async (req, res) => {
 
       const borrowResult = await borrowsCollection.insertOne(newBorrow);
 
-      // Decrement copies
       await booksCollection.updateOne(bookQuery, { $inc: { totalCopies: -1 } });
 
       return res.status(201).send({
@@ -601,7 +582,6 @@ app.post('/borrows', verifyToken, async (req, res) => {
   }
 });
 
-// Get user borrowed books
 app.get('/borrows', verifyToken, async (req, res) => {
   try {
     const userEmail = req.query.email || req.user?.email;
@@ -626,7 +606,6 @@ app.get('/borrows', verifyToken, async (req, res) => {
   }
 });
 
-// Return a book
 app.delete('/borrows/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -648,7 +627,6 @@ app.delete('/borrows/:id', verifyToken, async (req, res) => {
         return res.status(404).send({ error: 'Borrow record not found' });
       }
 
-      // Increment copies
       if (borrow.bookId) {
         let bookQuery;
         try {
@@ -679,7 +657,6 @@ app.delete('/borrows/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Start Server
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`BookNook Server running on port ${port}`);
