@@ -1,6 +1,3 @@
-/**
- * Validation helper for book and borrow requests
- */
 function validateBookInput(data) {
   const errors = [];
   if (!data.title || typeof data.title !== 'string' || !data.title.trim()) {

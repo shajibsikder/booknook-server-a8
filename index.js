@@ -55,7 +55,7 @@ async function connectDB() {
   if (db) return db;
   try {
     if (!uri || uri.includes('<username>')) {
-      console.warn('⚠️ MongoDB URI not configured yet. Server will run with in-memory fallback until DB is connected.');
+      console.warn('MongoDB URI not configured. Server running in local mode.');
       return null;
     }
     client = new MongoClient(uri, {
@@ -67,10 +67,10 @@ async function connectDB() {
     });
     await client.connect();
     db = client.db(process.env.DB_NAME || 'booknook_db');
-    console.log('✅ Connected successfully to MongoDB Atlas!');
+    console.log('Connected to MongoDB Atlas');
     return db;
   } catch (error) {
-    console.error('❌ MongoDB Connection Error:', error.message);
+    console.error('MongoDB connection error:', error.message);
     return null;
   }
 }
@@ -344,7 +344,6 @@ app.get('/books', async (req, res) => {
       return res.send(books);
     }
 
-    // Fallback in-memory
     let books = [...inMemoryBooks];
     if (category && category !== 'All') {
       books = books.filter((b) => b.category.toLowerCase() === category.toLowerCase());
@@ -385,7 +384,6 @@ app.get('/books/:id', async (req, res) => {
       return res.send(book);
     }
 
-    // Fallback in-memory
     const book = inMemoryBooks.find((b) => b._id.toString() === id);
     if (!book) {
       return res.status(404).send({ error: 'Book not found' });
@@ -424,7 +422,6 @@ app.post('/books', verifyToken, async (req, res) => {
       return res.status(201).send({ success: true, insertedId: result.insertedId, book: newBook });
     }
 
-    // Fallback in-memory
     newBook._id = new Date().getTime().toString();
     inMemoryBooks.unshift(newBook);
     res.status(201).send({ success: true, insertedId: newBook._id, book: newBook });
@@ -462,7 +459,6 @@ app.patch('/books/:id', verifyToken, async (req, res) => {
       return res.send({ success: true, modifiedCount: result.modifiedCount });
     }
 
-    // Fallback in-memory
     const index = inMemoryBooks.findIndex((b) => b._id.toString() === id);
     if (index === -1) {
       return res.status(404).send({ error: 'Book not found' });
@@ -493,7 +489,6 @@ app.delete('/books/:id', verifyToken, async (req, res) => {
       return res.send({ success: true, deletedCount: result.deletedCount });
     }
 
-    // Fallback in-memory
     const bookIndex = inMemoryBooks.findIndex((b) => b._id.toString() === id);
     if (bookIndex !== -1) {
       inMemoryBooks.splice(bookIndex, 1);
@@ -575,7 +570,6 @@ app.post('/borrows', verifyToken, async (req, res) => {
       });
     }
 
-    // Fallback in-memory
     const book = inMemoryBooks.find((b) => b._id.toString() === bookId);
     if (!book) return res.status(404).send({ error: 'Book not found' });
     if (book.totalCopies <= 0) return res.status(400).send({ error: 'Not Available (0 copies left)' });
@@ -625,7 +619,6 @@ app.get('/borrows', verifyToken, async (req, res) => {
       return res.send(borrows);
     }
 
-    // Fallback in-memory
     const userBorrows = inMemoryBorrows.filter((b) => b.userEmail === userEmail && b.status === 'borrowed');
     res.send(userBorrows);
   } catch (error) {
@@ -670,7 +663,6 @@ app.delete('/borrows/:id', verifyToken, async (req, res) => {
       return res.send({ success: true, message: 'Book returned successfully!', deletedCount: result.deletedCount });
     }
 
-    // Fallback in-memory
     const borrowIndex = inMemoryBorrows.findIndex((b) => b._id.toString() === id);
     if (borrowIndex === -1) {
       return res.status(404).send({ error: 'Borrow record not found' });
