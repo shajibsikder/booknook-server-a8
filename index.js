@@ -384,7 +384,7 @@ app.get('/books/:id', async (req, res) => {
 
 app.post('/books', verifyToken, async (req, res) => {
   try {
-    const { title, author, category, image, description, totalCopies, userName, userEmail } = req.body;
+    const { title, author, category, image, description, totalCopies, userName, userEmail, addedDate } = req.body;
 
     if (!title || !author || !category || !image || !description) {
       return res.status(400).send({ error: 'All fields are required' });
@@ -399,6 +399,7 @@ app.post('/books', verifyToken, async (req, res) => {
       totalCopies: parseInt(totalCopies) || 1,
       userName: userName || req.user?.name || 'Anonymous User',
       userEmail: userEmail || req.user?.email,
+      addedDate: addedDate || new Date().toISOString().split('T')[0],
       createdAt: new Date(),
     };
 
